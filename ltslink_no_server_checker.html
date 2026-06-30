@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LTSLink No-Server Checker</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #11182d;
+      --panel-2: #17213a;
+      --input: #0d1428;
+      --text: #edf2ff;
+      --muted: #9aa8c7;
+      --border: #26324e;
+      --accent: #7aa2ff;
+      --good: #29d391;
+      --bad: #ff5d73;
+      --warn: #ffd166;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(122, 162, 255, .18), transparent 34rem),
+        radial-gradient(circle at bottom right, rgba(41, 211, 145, .12), transparent 30rem),
+        var(--bg);
+      color: var(--text);
+    }
+
+    header, main, footer {
+      width: min(1160px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    header { padding: 36px 0 18px; }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(30px, 5vw, 54px);
+      line-height: .95;
+      letter-spacing: -.06em;
+    }
+
+    p {
+      color: var(--muted);
+      line-height: 1.55;
+      margin: 0;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 390px 1fr;
+      gap: 18px;
+      padding: 18px 0 22px;
+    }
+
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.04), transparent), var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: 0 18px 45px rgba(0, 0, 0, .28);
+      overflow: hidden;
+    }
+
+    .head {
+      padding: 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: -.02em;
+    }
+
+    .body { padding: 18px; }
+
+    .notice {
+      border: 1px solid rgba(255, 209, 102, .32);
+      background: rgba(255, 209, 102, .08);
+      color: #ffe0a3;
+      border-radius: 16px;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.45;
+      margin-bottom: 14px;
+    }
+
+    .field { margin-bottom: 14px; }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 7px;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      background: var(--input);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 12px 13px;
+      font: inherit;
+      outline: none;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: rgba(122, 162, 255, .85);
+      box-shadow: 0 0 0 4px rgba(122, 162, 255, .13);
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin: 6px 0 16px;
+    }
+
+    @media (max-width: 600px) {
+      .tabs { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .tab {
+      border: 1px solid var(--border);
+      background: var(--input);
+      color: var(--muted);
+      padding: 10px;
+      border-radius: 12px;
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    .tab.active {
+      color: var(--text);
+      border-color: rgba(122, 162, 255, .85);
+      background: rgba(122, 162, 255, .13);
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .btn {
+      border: 0;
+      background: var(--accent);
+      color: #071021;
+      font-weight: 800;
+      border-radius: 12px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: opacity .15s ease, transform .08s ease;
+      white-space: nowrap;
+    }
+
+    .btn:hover { opacity: .93; }
+    .btn:active { transform: translateY(1px); }
+
+    .btn.secondary {
+      background: #26324e;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn.danger {
+      background: rgba(255, 93, 115, .14);
+      color: #ff9aaa;
+      border: 1px solid rgba(255, 93, 115, .28);
+    }
+
+    .btn.full { width: 100%; }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .actions .wide { grid-column: 1 / -1; }
+
+    .token-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    @media (max-width: 600px) {
+      .row { grid-template-columns: 1fr; }
+    }
+
+    .filters {
+      max-height: 230px;
+      overflow: auto;
+      background: var(--input);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 8px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .filter {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 7px;
+      color: var(--muted);
+      font-size: 13px;
+      border-radius: 10px;
+    }
+
+    .filter:hover { background: rgba(255,255,255,.04); }
+    .filter input { width: auto; accent-color: var(--accent); }
+    .filter b { color: var(--text); }
+
+    .status {
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.05);
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .status.good {
+      color: var(--good);
+      border-color: rgba(41, 211, 145, .32);
+      background: rgba(41, 211, 145, .08);
+    }
+
+    .status.bad {
+      color: var(--bad);
+      border-color: rgba(255, 93, 115, .32);
+      background: rgba(255, 93, 115, .08);
+    }
+
+    .status.warn {
+      color: var(--warn);
+      border-color: rgba(255, 209, 102, .32);
+      background: rgba(255, 209, 102, .08);
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      margin-top: 10px;
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .urlbox {
+      background: #080d1b;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      overflow-wrap: anywhere;
+      font-size: 12px;
+      color: #d7e0ff;
+      margin-bottom: 14px;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #080d1b;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      max-height: 440px;
+      overflow: auto;
+      color: #d7e0ff;
+      font-size: 12.5px;
+      line-height: 1.5;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--input);
+      display: none;
+      margin-bottom: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 680px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      background: rgba(255,255,255,.03);
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .badge {
+      display: inline-block;
+      padding: 5px 8px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .blocked {
+      color: var(--bad);
+      border-color: rgba(255, 93, 115, .32);
+      background: rgba(255, 93, 115, .08);
+    }
+
+    .ok {
+      color: var(--good);
+      border-color: rgba(41, 211, 145, .32);
+      background: rgba(41, 211, 145, .08);
+    }
+
+    .unknown {
+      color: var(--warn);
+      border-color: rgba(255, 209, 102, .32);
+      background: rgba(255, 209, 102, .08);
+    }
+
+    footer {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+      padding: 0 0 32px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>LTSLink No-Server Checker</h1>
+    <p>
+      Static HTML only. It can build/open API links and can try direct fetch, but browsers may block reading the response because of CORS.
+    </p>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="head">
+        <h2>Build Request</h2>
+        <span id="filterStatus" class="status">Fallback filters</span>
+      </div>
+      <div class="body">
+        <div class="notice">
+          No-server mode cannot hide your token. Do not publish this file with a real token saved inside it.
+        </div>
+
+        <div class="field">
+          <label for="token">API token</label>
+          <div class="token-row">
+            <input id="token" type="password" placeholder="gl_your_token_here" autocomplete="off" />
+            <button class="btn secondary" id="showToken" type="button">Show</button>
+          </div>
+          <p class="small">The token stays in this page only. It is not hardcoded.</p>
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" data-tab="single" type="button">Single</button>
+          <button class="tab" data-tab="bulk" type="button">Bulk</button>
+          <button class="tab" data-tab="multi" type="button">Multi</button>
+          <button class="tab" data-tab="vs" type="button">VS</button>
+        </div>
+
+        <div id="single" class="panel active">
+          <div class="field">
+            <label for="singleUrl">URL/domain</label>
+            <input id="singleUrl" placeholder="google.com" />
+          </div>
+          <div class="field">
+            <label for="singleFilter">Optional filter</label>
+            <select id="singleFilter"></select>
+          </div>
+        </div>
+
+        <div id="bulk" class="panel">
+          <div class="field">
+            <label for="bulkUrls">URLs/domains, max 3</label>
+            <textarea id="bulkUrls" placeholder="google.com&#10;github.com&#10;glseries.net"></textarea>
+          </div>
+          <div class="field">
+            <label for="bulkFilter">Optional single filter</label>
+            <select id="bulkFilter"></select>
+          </div>
+        </div>
+
+        <div id="multi" class="panel">
+          <div class="field">
+            <label for="multiUrls">URL/domain, or up to 3 comma/line-separated URLs</label>
+            <textarea id="multiUrls" placeholder="youtube.com"></textarea>
+          </div>
+          <div class="field">
+            <label>Choose filters</label>
+            <div class="filters" id="multiFilters"></div>
+          </div>
+        </div>
+
+        <div id="vs" class="panel">
+          <div class="field">
+            <label for="vsUrls">URL/domain, or up to 3 comma/line-separated URLs</label>
+            <textarea id="vsUrls" placeholder="glseries.net"></textarea>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="vsFilterA">Filter A</label>
+              <select id="vsFilterA"></select>
+            </div>
+            <div class="field">
+              <label for="vsFilterB">Filter B</label>
+              <select id="vsFilterB"></select>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn full" id="buildBtn" type="button">Build API URL</button>
+
+        <div class="actions">
+          <button class="btn secondary" id="tryFetch" type="button">Try direct fetch</button>
+          <button class="btn secondary" id="openUrl" type="button">Open raw JSON</button>
+          <button class="btn secondary" id="copyUrl" type="button">Copy URL</button>
+          <button class="btn secondary" id="copyCurl" type="button">Copy curl</button>
+          <button class="btn danger wide" id="clearBtn" type="button">Clear</button>
+        </div>
+
+        <p class="small">
+          If direct fetch says “Failed to fetch,” use “Open raw JSON.” That is the browser blocking the page from reading the API, not the API URL being wrong.
+        </p>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="head">
+        <h2>Output</h2>
+        <span id="requestStatus" class="status">Ready</span>
+      </div>
+      <div class="body">
+        <label>Generated API URL</label>
+        <div id="urlBox" class="urlbox">Build a request first.</div>
+
+        <div id="tableWrap" class="table-wrap"></div>
+
+        <label>Raw result / message</label>
+        <pre id="raw">No request yet.</pre>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    API base: <span class="mono">https://live.glseries.net/api/v1</span>. This no-server version is best as a clean API URL builder/opener.
+  </footer>
+
+  <script>
+    const API_BASE = "https://live.glseries.net/api/v1";
+
+    const fallbackFilters = [
+      ["", "All filters"],
+      ["fortiguard", "FortiGuard"],
+      ["lightspeed", "Lightspeed"],
+      ["paloalto", "Palo Alto"],
+      ["linewize", "Linewize"],
+      ["cisco", "Cisco Umbrella"],
+      ["securly", "Securly"],
+      ["goguardian", "GoGuardian"],
+      ["iboss", "iBoss"],
+      ["zscaler", "Zscaler"],
+      ["contentkeeper", "ContentKeeper"],
+      ["dnsfilter", "DNSFilter"],
+      ["googlesafebrowsing", "Google Safe Browsing"],
+      ["opendns", "OpenDNS"]
+    ].map(([key, name]) => ({ key, name }));
+
+    let filters = fallbackFilters;
+    let currentUrl = "";
+
+    const $ = id => document.getElementById(id);
+
+    function setStatus(text, mode = "") {
+      $("requestStatus").textContent = text;
+      $("requestStatus").className = "status" + (mode ? " " + mode : "");
+    }
+
+    function cleanUrls(text) {
+      return [...new Set(
+        text
+          .split(/[\n, ]+/)
+          .map(x => x.trim())
+          .filter(Boolean)
+          .map(x => x.replace(/^https?:\/\//i, "").replace(/\/+$/g, ""))
+      )];
+    }
+
+    function getToken() {
+      const token = $("token").value.trim();
+      if (!token) throw new Error("Paste your API token first.");
+      if (!token.startsWith("gl_")) throw new Error("Your token should start with gl_");
+      return token;
+    }
+
+    function activeTab() {
+      return document.querySelector(".tab.active").dataset.tab;
+    }
+
+    function buildApiUrl() {
+      const token = getToken();
+      const tab = activeTab();
+      let endpoint = "/check";
+      const params = new URLSearchParams({ token });
+
+      if (tab === "single") {
+        const url = cleanUrls($("singleUrl").value)[0];
+        if (!url) throw new Error("Enter a URL/domain.");
+        endpoint = "/check";
+        params.set("url", url);
+        if ($("singleFilter").value) params.set("filter", $("singleFilter").value);
+      }
+
+      if (tab === "bulk") {
+        const urls = cleanUrls($("bulkUrls").value);
+        if (!urls.length) throw new Error("Enter at least one URL/domain.");
+        if (urls.length > 3) throw new Error("Bulk supports max 3 URLs.");
+        endpoint = "/bulk";
+        params.set("url", urls.join(","));
+        if ($("bulkFilter").value) params.set("filter", $("bulkFilter").value);
+      }
+
+      if (tab === "multi") {
+        const urls = cleanUrls($("multiUrls").value);
+        const selected = [...$("multiFilters").querySelectorAll("input:checked")].map(x => x.value).filter(Boolean);
+        if (!urls.length) throw new Error("Enter at least one URL/domain.");
+        if (urls.length > 3) throw new Error("Multi supports max 3 URLs.");
+        if (!selected.length) throw new Error("Choose at least one filter.");
+        endpoint = "/multi";
+        params.set("url", urls.join(","));
+        params.set("filters", selected.join(","));
+      }
+
+      if (tab === "vs") {
+        const urls = cleanUrls($("vsUrls").value);
+        const a = $("vsFilterA").value;
+        const b = $("vsFilterB").value;
+        if (!urls.length) throw new Error("Enter at least one URL/domain.");
+        if (urls.length > 3) throw new Error("VS supports max 3 URLs.");
+        if (!a || !b || a === b) throw new Error("Choose two different filters.");
+        endpoint = "/vs";
+        params.set("url", urls.join(","));
+        params.set("filters", `${a},${b}`);
+      }
+
+      return `${API_BASE}${endpoint}?${params.toString()}`;
+    }
+
+    function redacted(url) {
+      try {
+        const u = new URL(url);
+        if (u.searchParams.has("token")) u.searchParams.set("token", "gl_REDACTED");
+        return u.toString();
+      } catch {
+        return url;
+      }
+    }
+
+    function showUrl(url) {
+      currentUrl = url;
+      $("urlBox").textContent = redacted(url);
+      $("raw").textContent = "Built. Use Try direct fetch, Open raw JSON, or Copy URL.";
+      $("tableWrap").style.display = "none";
+      setStatus("URL built", "good");
+    }
+
+    async function tryDirectFetch() {
+      if (!currentUrl) showUrl(buildApiUrl());
+      setStatus("Fetching…", "warn");
+      $("raw").textContent = "Loading…";
+      $("tableWrap").style.display = "none";
+
+      try {
+        const res = await fetch(currentUrl, { method: "GET" });
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = { status: res.status, raw: text }; }
+
+        $("raw").textContent = JSON.stringify(data, null, 2);
+
+        if (!res.ok || data.success === false) {
+          setStatus(data.error || data.code || data.message || "API error", "bad");
+        } else {
+          setStatus("Done", "good");
+        }
+
+        renderTable(data);
+      } catch (err) {
+        setStatus("Failed to fetch", "bad");
+        $("raw").textContent =
+`Direct fetch failed.
+
+This is usually CORS. Static HTML pages often cannot read API responses from another domain.
+
+Use "Open raw JSON" to open the generated API URL directly in a new tab.
+
+Browser error:
+${err.message}`;
+      }
+    }
+
+    function classify(v) {
+      if (v === true) return "blocked";
+      if (v === false) return "ok";
+      const s = String(v ?? "").toLowerCase();
+      if (["blocked", "block", "deny", "denied", "unsafe", "bad", "true"].some(x => s.includes(x))) return "blocked";
+      if (["allowed", "allow", "safe", "clean", "ok", "false"].some(x => s.includes(x))) return "ok";
+      return "unknown";
+    }
+
+    function first(obj, keys) {
+      if (!obj || typeof obj !== "object") return "";
+      for (const k of keys) {
+        if (obj[k] !== undefined && obj[k] !== null && typeof obj[k] !== "object") return obj[k];
+      }
+      return "";
+    }
+
+    function rowsFrom(obj) {
+      const rows = [];
+      const seen = new Set();
+
+      function walk(v, parentUrl = "") {
+        if (!v || typeof v !== "object") return;
+        if (Array.isArray(v)) return v.forEach(x => walk(x, parentUrl));
+
+        const url = first(v, ["url", "domain", "input", "target"]) || parentUrl;
+        const hasFilter = ["filter", "filterKey", "filter_key", "key", "name"].some(k => k in v);
+        const hasResult = ["blocked", "category", "categories", "status", "result", "verdict", "responseTime", "error", "message"].some(k => k in v);
+
+        if (hasFilter && hasResult) {
+          const rawResult = v.blocked ?? v.result?.blocked ?? v.status ?? v.verdict ?? "";
+          const state = classify(rawResult);
+          const cat = v.category ?? v.categories ?? v.result?.category ?? "";
+          const row = {
+            url,
+            filter: first(v, ["filter", "filterKey", "filter_key", "key", "name"]),
+            state,
+            result: state === "blocked" ? "Blocked" : state === "ok" ? "OK" : String(rawResult || "Unknown"),
+            category: Array.isArray(cat) ? cat.join(", ") : String(cat || ""),
+            time: first(v, ["responseTime", "response_time", "time", "ms"]),
+            message: first(v, ["error", "message", "code"])
+          };
+          const sig = JSON.stringify(row);
+          if (!seen.has(sig)) {
+            rows.push(row);
+            seen.add(sig);
+          }
+        }
+
+        Object.values(v).forEach(x => walk(x, url));
+      }
+
+      walk(obj);
+      return rows;
+    }
+
+    function renderTable(data) {
+      const rows = rowsFrom(data);
+      if (!rows.length) return;
+
+      $("tableWrap").innerHTML = `<table>
+        <thead>
+          <tr><th>URL</th><th>Filter</th><th>Result</th><th>Category</th><th>Time</th><th>Message</th></tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `<tr>
+            <td>${esc(r.url || "—")}</td>
+            <td class="mono">${esc(r.filter || "—")}</td>
+            <td><span class="badge ${r.state}">${esc(r.result)}</span></td>
+            <td>${esc(r.category || "—")}</td>
+            <td>${esc(r.time || "—")}</td>
+            <td>${esc(r.message || "—")}</td>
+          </tr>`).join("")}
+        </tbody>
+      </table>`;
+      $("tableWrap").style.display = "block";
+    }
+
+    function fillSelect(select, includeAll) {
+      select.innerHTML = "";
+      filters.forEach(f => {
+        if (!includeAll && !f.key) return;
+        const opt = document.createElement("option");
+        opt.value = f.key;
+        opt.textContent = f.key ? `${f.name} (${f.key})` : f.name;
+        select.appendChild(opt);
+      });
+    }
+
+    function fillFilterBoxes() {
+      fillSelect($("singleFilter"), true);
+      fillSelect($("bulkFilter"), true);
+      fillSelect($("vsFilterA"), false);
+      fillSelect($("vsFilterB"), false);
+      if ($("vsFilterB").options.length > 1) $("vsFilterB").selectedIndex = 1;
+
+      const box = $("multiFilters");
+      box.innerHTML = "";
+      filters.filter(f => f.key).forEach(f => {
+        const label = document.createElement("label");
+        label.className = "filter";
+        label.innerHTML = `<input type="checkbox" value="${esc(f.key)}"> <span><b>${esc(f.name)}</b> <span class="mono">(${esc(f.key)})</span></span>`;
+        box.appendChild(label);
+      });
+
+      ["fortiguard","lightspeed","securly","goguardian","linewize","iboss","cisco"].forEach(key => {
+        const input = box.querySelector(`input[value="${CSS.escape(key)}"]`);
+        if (input) input.checked = true;
+      });
+    }
+
+    async function tryLoadFilters() {
+      try {
+        const res = await fetch(`${API_BASE}/filters`);
+        const data = await res.json();
+        const parsed = normalizeFilters(data);
+        if (parsed.length) {
+          filters = [{ key: "", name: "All filters" }, ...parsed];
+          $("filterStatus").textContent = `${parsed.length} filters`;
+          $("filterStatus").className = "status good";
+        }
+      } catch {
+        $("filterStatus").textContent = "Fallback filters";
+        $("filterStatus").className = "status warn";
+      }
+      fillFilterBoxes();
+    }
+
+    function normalizeFilters(data) {
+      let list = [];
+      if (Array.isArray(data)) list = data;
+      else if (Array.isArray(data.filters)) list = data.filters;
+      else if (Array.isArray(data.data)) list = data.data;
+      else if (data.filters && typeof data.filters === "object") {
+        list = Object.entries(data.filters).map(([key, value]) => typeof value === "string" ? { key, name: value } : { key, ...value });
+      }
+      return list.map(x => typeof x === "string" ? { key:x, name:x } : {
+        key: x.key || x.id || x.filter || x.value || x.name,
+        name: x.name || x.label || x.title || x.key || x.id
+      }).filter(x => x.key);
+    }
+
+    function esc(x) {
+      return String(x ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;" }[c]));
+    }
+
+    function setup() {
+      document.querySelectorAll(".tab").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+          document.querySelectorAll(".panel").forEach(x => x.classList.remove("active"));
+          btn.classList.add("active");
+          $(btn.dataset.tab).classList.add("active");
+          currentUrl = "";
+          $("urlBox").textContent = "Build a request first.";
+          $("raw").textContent = "No request yet.";
+          $("tableWrap").style.display = "none";
+          setStatus("Ready");
+        });
+      });
+
+      $("showToken").onclick = () => {
+        const input = $("token");
+        const showing = input.type === "text";
+        input.type = showing ? "password" : "text";
+        $("showToken").textContent = showing ? "Show" : "Hide";
+      };
+
+      $("buildBtn").onclick = () => {
+        try {
+          showUrl(buildApiUrl());
+        } catch (err) {
+          setStatus(err.message, "bad");
+          $("raw").textContent = err.message;
+        }
+      };
+
+      $("tryFetch").onclick = () => {
+        try {
+          tryDirectFetch();
+        } catch (err) {
+          setStatus(err.message, "bad");
+          $("raw").textContent = err.message;
+        }
+      };
+
+      $("openUrl").onclick = () => {
+        try {
+          if (!currentUrl) showUrl(buildApiUrl());
+          window.open(currentUrl, "_blank", "noopener,noreferrer");
+        } catch (err) {
+          setStatus(err.message, "bad");
+          $("raw").textContent = err.message;
+        }
+      };
+
+      $("copyUrl").onclick = async () => {
+        try {
+          if (!currentUrl) showUrl(buildApiUrl());
+          await navigator.clipboard.writeText(currentUrl);
+          setStatus("Copied full URL", "good");
+        } catch (err) {
+          setStatus(err.message, "bad");
+          $("raw").textContent = err.message;
+        }
+      };
+
+      $("copyCurl").onclick = async () => {
+        try {
+          if (!currentUrl) showUrl(buildApiUrl());
+          await navigator.clipboard.writeText(`curl "${currentUrl}"`);
+          setStatus("Copied curl command", "good");
+        } catch (err) {
+          setStatus(err.message, "bad");
+          $("raw").textContent = err.message;
+        }
+      };
+
+      $("clearBtn").onclick = () => {
+        currentUrl = "";
+        $("urlBox").textContent = "Build a request first.";
+        $("raw").textContent = "No request yet.";
+        $("tableWrap").style.display = "none";
+        setStatus("Ready");
+      };
+    }
+
+    setup();
+    fillFilterBoxes();
+    tryLoadFilters();
+  </script>
+</body>
+</html>
